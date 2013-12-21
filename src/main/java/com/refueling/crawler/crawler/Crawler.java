@@ -10,5 +10,5 @@ public interface Crawler {
 
     boolean checkConnection(String username, String password);
 
-    void authenticate(String username, String password) throws Exception;
+    void authenticate() throws Exception;
 }
