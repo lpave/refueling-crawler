@@ -53,8 +53,7 @@ public class StatoilCrawler implements Crawler {
         // init cookies
         HttpGet httpGet = new HttpGet(formLoginUrl);
         try {
-            CloseableHttpResponse getResponse = httpClient.execute(httpGet);
-            try {
+            try (CloseableHttpResponse getResponse = httpClient.execute(httpGet)) {
                 HttpEntity entity = getResponse.getEntity();
                 logger.debug("getResponse status: {}", getResponse.getStatusLine());
                 EntityUtils.consume(entity);
@@ -63,19 +62,14 @@ public class StatoilCrawler implements Crawler {
                         logger.debug("Initial cookies are : {} ", cookie.toString());
                     }
                 }
-            } finally {
-                getResponse.close();
             }
             // auth
             HttpPost httpPost = new HttpPost(postLoginForm);
             httpPost.setEntity(new UrlEncodedFormEntity(getPostRequest(), Consts.UTF_8));
-            CloseableHttpResponse postResponse = httpClient.execute(httpPost);
-            try {
+            try (CloseableHttpResponse postResponse = httpClient.execute(httpPost)) {
                 HttpEntity postEntity = postResponse.getEntity();
                 logger.debug("postResponse status: {} and cookies : {} ", postResponse.getStatusLine(), cookieStore.getCookies());
                 EntityUtils.consume(postEntity);
-            } finally {
-                postResponse.close();
             }
             shiftToReportsPage(httpClient); // assume we are authenticated
         } finally {
@@ -86,13 +80,10 @@ public class StatoilCrawler implements Crawler {
     private void shiftToReportsPage(final CloseableHttpClient client) {
         HttpGet httpGet = new HttpGet(reportPageUrl);
         try {
-            CloseableHttpResponse getResponse = client.execute(httpGet);
-            try {
+            try (CloseableHttpResponse getResponse = client.execute(httpGet)) {
                 HttpEntity resp = getResponse.getEntity();
                 logger.debug("Resp from reports page: {}", getResponse.getStatusLine());
                 EntityUtils.consume(resp);
-            } finally {
-                getResponse.close();
             }
         } catch (IOException e) {
             logger.error("Could not proceed to reports page:", e);
