@@ -1,5 +1,6 @@
 package com.refueling.crawler.crawler;
 
+import com.google.common.base.Charsets;
 import com.refueling.crawler.model.Refueling;
 import org.apache.http.Consts;
 import org.apache.http.HttpEntity;
@@ -12,6 +13,9 @@ import org.apache.http.cookie.Cookie;
 import org.apache.http.impl.client.*;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,14 +53,16 @@ public class StatoilCrawler implements Crawler {
     @Override
     public void authenticate() throws IOException {
         BasicCookieStore cookieStore = new BasicCookieStore();
+        Document loginPage = null;
         final CloseableHttpClient httpClient = buildClient(cookieStore);
         // init cookies
         HttpGet httpGet = new HttpGet(formLoginUrl);
         try {
             try (CloseableHttpResponse getResponse = httpClient.execute(httpGet)) {
                 HttpEntity entity = getResponse.getEntity();
+                loginPage = Jsoup.parse(EntityUtils.toString(entity, Charsets.UTF_8));
                 logger.debug("getResponse status: {}", getResponse.getStatusLine());
-                EntityUtils.consume(entity);
+                EntityUtils.consumeQuietly(entity);
                 if (!cookieStore.getCookies().isEmpty()) {
                     for (Cookie cookie : cookieStore.getCookies()) {
                         logger.debug("Initial cookies are : {} ", cookie.toString());
@@ -65,11 +71,11 @@ public class StatoilCrawler implements Crawler {
             }
             // auth
             HttpPost httpPost = new HttpPost(postLoginForm);
-            httpPost.setEntity(new UrlEncodedFormEntity(getPostRequest(), Consts.UTF_8));
+            httpPost.setEntity(new UrlEncodedFormEntity(getPostRequest(loginPage), Consts.UTF_8));
             try (CloseableHttpResponse postResponse = httpClient.execute(httpPost)) {
                 HttpEntity postEntity = postResponse.getEntity();
                 logger.debug("postResponse status: {} and cookies : {} ", postResponse.getStatusLine(), cookieStore.getCookies());
-                EntityUtils.consume(postEntity);
+                EntityUtils.consumeQuietly(postEntity);
             }
             shiftToReportsPage(httpClient); // assume we are authenticated
         } finally {
@@ -83,10 +89,15 @@ public class StatoilCrawler implements Crawler {
             try (CloseableHttpResponse getResponse = client.execute(httpGet)) {
                 HttpEntity resp = getResponse.getEntity();
                 logger.debug("Resp from reports page: {}", getResponse.getStatusLine());
-                EntityUtils.consume(resp);
+                Document reportsPage = Jsoup.parse(EntityUtils.toString(resp, Charsets.UTF_8));
+                Element downloadReport = reportsPage.getElementById("ctl00_ContentPlaceHolderContent_ButtonHandleReportsDownloadReport");
+                logger.debug("DownloadReport element {} ", downloadReport); // means we have reached download button
+                EntityUtils.consumeQuietly(resp);
+
             }
         } catch (IOException e) {
             logger.error("Could not proceed to reports page:", e);
+            throw new RuntimeException();
         }
     }
 
@@ -94,15 +105,39 @@ public class StatoilCrawler implements Crawler {
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         httpClientBuilder.setDefaultCookieStore(cookieStore);
         httpClientBuilder.setRedirectStrategy(new LaxRedirectStrategy());
+        httpClientBuilder.setUserAgent("Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:25.0) Gecko/20100101 Firefox/25.0");
         return httpClientBuilder.build();
     }
 
     //TODO refactor to properties file
-    private List<NameValuePair> getPostRequest() {
+    private List<NameValuePair> getPostRequest(final Document document) {
         List<NameValuePair> values = new ArrayList<NameValuePair>();
         values.add(new BasicNameValuePair("ctl00$ContentPlaceHolderContent$textboxUserName", username));
         values.add(new BasicNameValuePair("ctl00$ContentPlaceHolderContent$textboxPassword", password));
-        values.add(new BasicNameValuePair("ASYNCPOST", "true")); // check whether it is important  ?
+        values.add(new BasicNameValuePair("ctl00$ContentPlaceHolderContent$buttonLogin", "»")); // submit button
+        //weird stuff for aspx ?
+        values.add(new BasicNameValuePair("__ASYNCPOST", "true")); // check whether it is important  ?
+        // hidden form params
+        if (document != null) {
+            values.add(nameValuePair(document, "__EVENTTARGET"));
+            values.add(nameValuePair(document, "__EVENTARGUMENT"));
+            values.add(nameValuePair(document, "__LASTFOCUS"));
+            values.add(nameValuePair(document, "__EVENTVALIDATION"));
+            values.add(nameValuePair(document, "__VIEWSTATE"));
+            values.add(nameValuePair(document, "ctl00_ScriptManagerWebfuelSite_HiddenField"));
+            values.add(nameValuePair(document, "ctl00_ScriptManagerWebfuelSite"));
+        }
+        values.add(new BasicNameValuePair("ctl00$InputNewPassword1", ""));
+        values.add(new BasicNameValuePair("ctl00$InputNewPassword2", ""));
+        values.add(new BasicNameValuePair("ctl00$InputPasswordOld", ""));
         return values;
+    }
+
+    private BasicNameValuePair nameValuePair(final Document document, final String name) {
+        return new BasicNameValuePair(name, value(document, name));
+    }
+
+    private String value(final Document document, final String id) {
+        return document.getElementById(id).val();
     }
 }
