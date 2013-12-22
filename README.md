@@ -1,4 +1,3 @@
-refueling-crawler
 
 Add -DstatoilUser= and -DstatoilPass= to your run configuration.
 
