@@ -3,6 +3,7 @@ package com.refueling.crawler.crawler.impl;
 import com.google.common.base.Charsets;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Lists;
 import com.refueling.crawler.crawler.Crawler;
 import com.refueling.crawler.model.Refueling;
 import org.apache.http.Consts;
@@ -16,13 +17,17 @@ import org.apache.http.cookie.Cookie;
 import org.apache.http.impl.client.*;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.joda.time.DateTime;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.misc.IOUtils;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +38,9 @@ public class StatoilCrawler implements Crawler {
     private static final String formLoginUrl = "https://www.statoilwebfuel.com";
     private static final String postLoginForm = "https://www.statoilwebfuel.com/login.aspx?ReturnUrl=%2fHome%2fhome.aspx";
     private static final String reportPageUrl = "https://www.statoilwebfuel.com/Home/Report/reports.aspx";
+    private static final String datePattern = "dd.MM.yyyy";
+    private static final String reportType = "8";
+    private static final String accountType = "0";
     private String username;
     private String password;
 
@@ -48,10 +56,10 @@ public class StatoilCrawler implements Crawler {
 
     //TODO proceed with report download
     @Override
-    public List<Refueling> getRefuelings() throws Exception {
+    public List<Refueling> getRefuelings(final DateTime from, final DateTime to) throws Exception {
         BasicCookieStore cookieStore = authenticate();
         final CloseableHttpClient httpClient = buildClient(cookieStore);
-        shiftToReportsPage(httpClient);
+        shiftToReportsPage(httpClient, from, to);
         return null;
     }
 
@@ -71,7 +79,7 @@ public class StatoilCrawler implements Crawler {
         try {
             try (CloseableHttpResponse getResponse = httpClient.execute(httpGet)) {
                 HttpEntity entity = getResponse.getEntity();
-                loginPage = Jsoup.parse(EntityUtils.toString(entity, Charsets.UTF_8));
+                loginPage = Jsoup.parse(read(entity));
                 logger.debug("getResponse status: {}", getResponse.getStatusLine());
                 EntityUtils.consumeQuietly(entity);
                 if (!cookieStore.getCookies().isEmpty()) {
@@ -82,7 +90,7 @@ public class StatoilCrawler implements Crawler {
             }
             // auth
             HttpPost httpPost = new HttpPost(postLoginForm);
-            httpPost.setEntity(new UrlEncodedFormEntity(getPostRequest(loginPage), Consts.UTF_8));
+            httpPost.setEntity(new UrlEncodedFormEntity(buildAuthRequest(loginPage), Consts.UTF_8));
             try (CloseableHttpResponse postResponse = httpClient.execute(httpPost)) {
                 HttpEntity postEntity = postResponse.getEntity();
                 logger.debug("postResponse status: {} and cookies : {} ", postResponse.getStatusLine(), cookieStore.getCookies());
@@ -94,22 +102,37 @@ public class StatoilCrawler implements Crawler {
         }
     }
 
-    private void shiftToReportsPage(final CloseableHttpClient client) {
+    private void shiftToReportsPage(final CloseableHttpClient client, final DateTime from, final DateTime to) {
+        Document reportsDocument = null;
         HttpGet httpGet = new HttpGet(reportPageUrl);
         try {
             try (CloseableHttpResponse getResponse = client.execute(httpGet)) {
                 HttpEntity resp = getResponse.getEntity();
                 logger.debug("Resp from reports page: {}", getResponse.getStatusLine());
-                Document reportsPage = Jsoup.parse(EntityUtils.toString(resp, Charsets.UTF_8));
-                Element downloadReport = reportsPage.getElementById("ctl00_ContentPlaceHolderContent_ButtonHandleReportsDownloadReport");
+                reportsDocument = Jsoup.parse(read(resp));
+                Element downloadReport = reportsDocument.getElementById("ctl00_ContentPlaceHolderContent_ButtonHandleReportsDownloadReport");
                 logger.debug("DownloadReport element {} ", downloadReport); // means we have reached download button
                 EntityUtils.consumeQuietly(resp);
-
+            }
+            HttpPost httpPost = new HttpPost(reportPageUrl);
+            httpPost.setEntity(new UrlEncodedFormEntity(buildDownloadRequest(reportsDocument, from, to), Consts.UTF_8));
+            try (CloseableHttpResponse postResponse = client.execute(httpPost)) {
+                HttpEntity reportsResp = postResponse.getEntity();
+                logger.debug("Resp after post to reports page: {} ", postResponse.getStatusLine());
+//                Document document = Jsoup.parse(read(reportsResp));
+                logger.debug("Content type of response: {} ", reportsResp.getContentType());
+                InputStream in = reportsResp.getContent();
+                new FileOutputStream("test1.csv").write(IOUtils.readFully(in, -1, false));
+                EntityUtils.consumeQuietly(reportsResp);
             }
         } catch (IOException e) {
             logger.error("Could not proceed to reports page:", e);
             throw new RuntimeException();
         }
+    }
+
+    private String read(HttpEntity reportsResp) throws IOException {
+        return EntityUtils.toString(reportsResp, Charsets.UTF_8);
     }
 
     private boolean hasAuthCookie(final List<Cookie> cookies) {
@@ -132,27 +155,60 @@ public class StatoilCrawler implements Crawler {
     }
 
     //TODO refactor to properties file
-    private List<NameValuePair> getPostRequest(final Document document) {
+    private List<NameValuePair> buildAuthRequest(final Document document) {
         List<NameValuePair> values = new ArrayList<NameValuePair>();
         values.add(new BasicNameValuePair("ctl00$ContentPlaceHolderContent$textboxUserName", username));
         values.add(new BasicNameValuePair("ctl00$ContentPlaceHolderContent$textboxPassword", password));
         values.add(new BasicNameValuePair("ctl00$ContentPlaceHolderContent$buttonLogin", "»")); // submit button
-        //weird stuff for aspx ?
-        values.add(new BasicNameValuePair("__ASYNCPOST", "true")); // check whether it is important  ?
         // hidden form params
         if (document != null) {
-            values.add(nameValuePair(document, "__EVENTTARGET"));
-            values.add(nameValuePair(document, "__EVENTARGUMENT"));
-            values.add(nameValuePair(document, "__LASTFOCUS"));
-            values.add(nameValuePair(document, "__EVENTVALIDATION"));
-            values.add(nameValuePair(document, "__VIEWSTATE"));
-            values.add(nameValuePair(document, "ctl00_ScriptManagerWebfuelSite_HiddenField"));
-            values.add(nameValuePair(document, "ctl00_ScriptManagerWebfuelSite"));
+            addHiddenFields(document, values, false);
         }
+        addPasswordFields(values);
+        return values;
+    }
+
+    private void addHiddenFields(Document document, List<NameValuePair> values, boolean skipValidation) {
+        values.add(new BasicNameValuePair("__ASYNCPOST", "true")); // check whether it is important  ?
+        if (!skipValidation) values.add(nameValuePair(document, "__EVENTTARGET"));
+        values.add(nameValuePair(document, "__EVENTARGUMENT"));
+        values.add(nameValuePair(document, "__LASTFOCUS"));
+        if (!skipValidation) values.add(nameValuePair(document, "__EVENTVALIDATION"));
+        values.add(nameValuePair(document, "__VIEWSTATE"));
+        values.add(nameValuePair(document, "ctl00_ScriptManagerWebfuelSite_HiddenField"));
+        values.add(nameValuePair(document, "ctl00_ScriptManagerWebfuelSite"));
+    }
+
+    private void addPasswordFields(List<NameValuePair> values) {
         values.add(new BasicNameValuePair("ctl00$InputNewPassword1", ""));
         values.add(new BasicNameValuePair("ctl00$InputNewPassword2", ""));
         values.add(new BasicNameValuePair("ctl00$InputPasswordOld", ""));
+    }
+
+    private List<NameValuePair> buildDownloadRequest(final Document document, final DateTime from, final DateTime to) {
+        List<NameValuePair> values = Lists.newArrayList();
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$TextBoxViewReportsFrom", from.toString(datePattern)));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$TextBoxViewReportsTo", to.toString(datePattern)));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsReport", reportType));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsAccount", accountType));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$ReportFormat", "RadioButtonCSV"));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$ButtonHandleReportsDownloadReport", "Download+report"));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsAccount", "0"));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsCountry", "0"));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsFuelings", "0"));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsInvoice", "0"));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsProduct", "0"));
+        values.add(buildPair("__EVENTTARGET", "ctl00$ContentPlaceHolderContent$DropDownListHandleReportsAccount"));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$HidExport", "-1"));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$HidExportParent", "-1"));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$HidExportType", "-1"));
+        addHiddenFields(document, values, true);
+        addPasswordFields(values);
         return values;
+    }
+
+    private BasicNameValuePair buildPair(final String name, final String value) {
+        return new BasicNameValuePair(name, value);
     }
 
     private BasicNameValuePair nameValuePair(final Document document, final String name) {

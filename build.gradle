@@ -12,6 +12,7 @@ dependencies {
     compile 'org.apache.httpcomponents:httpcore:4.3'
     compile 'com.google.guava:guava:15.0'
     compile 'org.jsoup:jsoup:1.7.2'
+    compile 'joda-time:joda-time:2.3'
 
     testCompile 'junit:junit:4.11'
     testCompile 'org.mockito:mockito-all:1.9.5'
