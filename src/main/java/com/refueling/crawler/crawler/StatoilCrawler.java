@@ -9,9 +9,7 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.cookie.Cookie;
-import org.apache.http.impl.client.BasicCookieStore;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.client.*;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
@@ -51,7 +49,7 @@ public class StatoilCrawler implements Crawler {
     @Override
     public void authenticate() throws IOException {
         BasicCookieStore cookieStore = new BasicCookieStore();
-        final CloseableHttpClient httpClient = HttpClients.custom().setDefaultCookieStore(cookieStore).build();
+        final CloseableHttpClient httpClient = buildClient(cookieStore);
         // init cookies
         HttpGet httpGet = new HttpGet(formLoginUrl);
         try {
@@ -99,6 +97,13 @@ public class StatoilCrawler implements Crawler {
         } catch (IOException e) {
             logger.error("Could not proceed to reports page:", e);
         }
+    }
+
+    private CloseableHttpClient buildClient(final BasicCookieStore cookieStore) {
+        HttpClientBuilder httpClientBuilder = HttpClients.custom();
+        httpClientBuilder.setDefaultCookieStore(cookieStore);
+        httpClientBuilder.setRedirectStrategy(new LaxRedirectStrategy());
+        return httpClientBuilder.build();
     }
 
     //TODO refactor to properties file
