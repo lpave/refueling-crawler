@@ -1,6 +1,9 @@
-package com.refueling.crawler.crawler;
+package com.refueling.crawler.crawler.impl;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
+import com.refueling.crawler.crawler.Crawler;
 import com.refueling.crawler.model.Refueling;
 import org.apache.http.Consts;
 import org.apache.http.HttpEntity;
@@ -30,8 +33,8 @@ public class StatoilCrawler implements Crawler {
     private static final String formLoginUrl = "https://www.statoilwebfuel.com";
     private static final String postLoginForm = "https://www.statoilwebfuel.com/login.aspx?ReturnUrl=%2fHome%2fhome.aspx";
     private static final String reportPageUrl = "https://www.statoilwebfuel.com/Home/Report/reports.aspx";
-    private final String username;
-    private final String password;
+    private String username;
+    private String password;
 
     public StatoilCrawler(final String username, final String password) {
         checkNotNull(username, "Should be initialized");
@@ -40,18 +43,26 @@ public class StatoilCrawler implements Crawler {
         this.password = password;
     }
 
+    public StatoilCrawler() {
+    }
+
+    //TODO proceed with report download
     @Override
-    public List<Refueling> getRefuelings() {
+    public List<Refueling> getRefuelings() throws Exception {
+        BasicCookieStore cookieStore = authenticate();
+        final CloseableHttpClient httpClient = buildClient(cookieStore);
+        shiftToReportsPage(httpClient);
         return null;
     }
 
     @Override
-    public boolean checkConnection(final String username, final String password) {
-        return false;
+    public boolean checkConnection() throws Exception {
+        BasicCookieStore cookieStore = authenticate();
+        return hasAuthCookie(cookieStore.getCookies());
     }
 
-    @Override
-    public void authenticate() throws IOException {
+    // TODO minimize
+    private BasicCookieStore authenticate() throws Exception {
         BasicCookieStore cookieStore = new BasicCookieStore();
         Document loginPage = null;
         final CloseableHttpClient httpClient = buildClient(cookieStore);
@@ -77,7 +88,7 @@ public class StatoilCrawler implements Crawler {
                 logger.debug("postResponse status: {} and cookies : {} ", postResponse.getStatusLine(), cookieStore.getCookies());
                 EntityUtils.consumeQuietly(postEntity);
             }
-            shiftToReportsPage(httpClient); // assume we are authenticated
+            return cookieStore;
         } finally {
             httpClient.close();
         }
@@ -99,6 +110,17 @@ public class StatoilCrawler implements Crawler {
             logger.error("Could not proceed to reports page:", e);
             throw new RuntimeException();
         }
+    }
+
+    private boolean hasAuthCookie(final List<Cookie> cookies) {
+        Predicate<Cookie> filter = new Predicate<Cookie>() {
+            @Override
+            public boolean apply(Cookie input) {
+                return ".ASPXAUTH".equals(input.getName());
+            }
+        };
+        List<Cookie> resp = FluentIterable.from(cookies).filter(filter).toList();
+        return !resp.isEmpty();
     }
 
     private CloseableHttpClient buildClient(final BasicCookieStore cookieStore) {

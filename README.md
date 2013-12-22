@@ -1,7 +1,8 @@
 refueling-crawler
 
+Add -DstatoilUser= and -DstatoilPass= to your run configuration.
 
-Apache http client logging :
+Apache http client debug logging, add this to your run configuration :
 
 -Dorg.apache.commons.logging.Log=org.apache.commons.logging.impl.SimpleLog
 -Dorg.apache.commons.logging.simplelog.showdatetime=true

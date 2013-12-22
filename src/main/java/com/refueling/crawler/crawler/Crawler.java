@@ -6,9 +6,8 @@ import java.util.List;
 
 public interface Crawler {
 
-    List<Refueling> getRefuelings();
+    List<Refueling> getRefuelings() throws Exception;
 
-    boolean checkConnection(String username, String password);
+    boolean checkConnection() throws Exception;
 
-    void authenticate() throws Exception;
 }
