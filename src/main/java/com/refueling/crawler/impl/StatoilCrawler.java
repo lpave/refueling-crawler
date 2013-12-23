@@ -1,10 +1,11 @@
-package com.refueling.crawler.crawler.impl;
+package com.refueling.crawler.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
-import com.refueling.crawler.crawler.Crawler;
+import com.refueling.crawler.Crawler;
 import com.refueling.crawler.model.Refueling;
 import org.apache.http.Consts;
 import org.apache.http.HttpEntity;
@@ -30,28 +31,36 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class StatoilCrawler implements Crawler {
     private static final Logger logger = LoggerFactory.getLogger(StatoilCrawler.class);
-    private static final String formLoginUrl = "https://www.statoilwebfuel.com";
-    private static final String postLoginForm = "https://www.statoilwebfuel.com/login.aspx?ReturnUrl=%2fHome%2fhome.aspx";
-    private static final String reportPageUrl = "https://www.statoilwebfuel.com/Home/Report/reports.aspx";
     private static final String datePattern = "dd.MM.yyyy";
-    private static final String reportType = "8";
-    private static final String accountType = "0";
     private String username;
     private String password;
+    private Map<String, Object> config;
 
     public StatoilCrawler(final String username, final String password) {
         checkNotNull(username, "Should be initialized");
         checkNotNull(password, "Should be initialized");
         this.username = username;
         this.password = password;
+        init();
     }
 
-    public StatoilCrawler() {
+    private void init() {
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            InputStream in = Thread.currentThread()
+                    .getContextClassLoader()
+                    .getResourceAsStream("com/refueling/crawler/impl/config.json");
+            config = mapper.readValue(in, Map.class);
+        } catch (IOException e) {
+            logger.error("Json configuration initialization failed:", e);
+            throw new RuntimeException();
+        }
     }
 
     //TODO proceed with report download
@@ -75,21 +84,16 @@ public class StatoilCrawler implements Crawler {
         Document loginPage = null;
         final CloseableHttpClient httpClient = buildClient(cookieStore);
         // init cookies
-        HttpGet httpGet = new HttpGet(formLoginUrl);
+        HttpGet httpGet = new HttpGet(param("mainPage"));
         try {
             try (CloseableHttpResponse getResponse = httpClient.execute(httpGet)) {
                 HttpEntity entity = getResponse.getEntity();
                 loginPage = Jsoup.parse(read(entity));
                 logger.debug("getResponse status: {}", getResponse.getStatusLine());
                 EntityUtils.consumeQuietly(entity);
-                if (!cookieStore.getCookies().isEmpty()) {
-                    for (Cookie cookie : cookieStore.getCookies()) {
-                        logger.debug("Initial cookies are : {} ", cookie.toString());
-                    }
-                }
             }
             // auth
-            HttpPost httpPost = new HttpPost(postLoginForm);
+            HttpPost httpPost = new HttpPost(param("loginForm"));
             httpPost.setEntity(new UrlEncodedFormEntity(buildAuthRequest(loginPage), Consts.UTF_8));
             try (CloseableHttpResponse postResponse = httpClient.execute(httpPost)) {
                 HttpEntity postEntity = postResponse.getEntity();
@@ -104,7 +108,7 @@ public class StatoilCrawler implements Crawler {
 
     private void shiftToReportsPage(final CloseableHttpClient client, final DateTime from, final DateTime to) {
         Document reportsDocument = null;
-        HttpGet httpGet = new HttpGet(reportPageUrl);
+        HttpGet httpGet = new HttpGet(param("reportPage"));
         try {
             try (CloseableHttpResponse getResponse = client.execute(httpGet)) {
                 HttpEntity resp = getResponse.getEntity();
@@ -114,12 +118,11 @@ public class StatoilCrawler implements Crawler {
                 logger.debug("DownloadReport element {} ", downloadReport); // means we have reached download button
                 EntityUtils.consumeQuietly(resp);
             }
-            HttpPost httpPost = new HttpPost(reportPageUrl);
+            HttpPost httpPost = new HttpPost(param("reportPage"));
             httpPost.setEntity(new UrlEncodedFormEntity(buildDownloadRequest(reportsDocument, from, to), Consts.UTF_8));
             try (CloseableHttpResponse postResponse = client.execute(httpPost)) {
                 HttpEntity reportsResp = postResponse.getEntity();
                 logger.debug("Resp after post to reports page: {} ", postResponse.getStatusLine());
-//                Document document = Jsoup.parse(read(reportsResp));
                 logger.debug("Content type of response: {} ", reportsResp.getContentType());
                 InputStream in = reportsResp.getContent();
                 new FileOutputStream("test1.csv").write(IOUtils.readFully(in, -1, false));
@@ -150,16 +153,16 @@ public class StatoilCrawler implements Crawler {
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         httpClientBuilder.setDefaultCookieStore(cookieStore);
         httpClientBuilder.setRedirectStrategy(new LaxRedirectStrategy());
-        httpClientBuilder.setUserAgent("Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:25.0) Gecko/20100101 Firefox/25.0");
+        httpClientBuilder.setUserAgent(param("userAgent"));
         return httpClientBuilder.build();
     }
 
     //TODO refactor to properties file
     private List<NameValuePair> buildAuthRequest(final Document document) {
         List<NameValuePair> values = new ArrayList<NameValuePair>();
-        values.add(new BasicNameValuePair("ctl00$ContentPlaceHolderContent$textboxUserName", username));
-        values.add(new BasicNameValuePair("ctl00$ContentPlaceHolderContent$textboxPassword", password));
-        values.add(new BasicNameValuePair("ctl00$ContentPlaceHolderContent$buttonLogin", "»")); // submit button
+        values.add(new BasicNameValuePair(param("userNameInput"), username));
+        values.add(new BasicNameValuePair(param("passwordInput"), password));
+        values.add(new BasicNameValuePair(param("loginButton"), "»")); // submit button
         // hidden form params
         if (document != null) {
             addHiddenFields(document, values, false);
@@ -189,8 +192,8 @@ public class StatoilCrawler implements Crawler {
         List<NameValuePair> values = Lists.newArrayList();
         values.add(buildPair("ctl00$ContentPlaceHolderContent$TextBoxViewReportsFrom", from.toString(datePattern)));
         values.add(buildPair("ctl00$ContentPlaceHolderContent$TextBoxViewReportsTo", to.toString(datePattern)));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsReport", reportType));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsAccount", accountType));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsReport", param("reportType")));
+        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsAccount", param("accountType")));
         values.add(buildPair("ctl00$ContentPlaceHolderContent$ReportFormat", "RadioButtonCSV"));
         values.add(buildPair("ctl00$ContentPlaceHolderContent$ButtonHandleReportsDownloadReport", "Download+report"));
         values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsAccount", "0"));
@@ -217,5 +220,9 @@ public class StatoilCrawler implements Crawler {
 
     private String value(final Document document, final String id) {
         return document.getElementById(id).val();
+    }
+
+    private String param(final String key) {
+        return (String) config.get(key);
     }
 }

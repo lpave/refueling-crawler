@@ -1,4 +1,4 @@
-package com.refueling.crawler.crawler;
+package com.refueling.crawler;
 
 import com.refueling.crawler.model.Refueling;
 import org.joda.time.DateTime;

@@ -1,6 +1,6 @@
 package com.refueling.crawler.crawler;
 
-import com.refueling.crawler.crawler.impl.StatoilCrawler;
+import com.refueling.crawler.impl.StatoilCrawler;
 import org.junit.Before;
 import org.junit.Test;
 
