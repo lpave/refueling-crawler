@@ -2,8 +2,8 @@ package com.refueling.crawler.impl;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
-import com.refueling.crawler.Crawler;
-import com.refueling.crawler.model.Refueling;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Consts;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
@@ -19,7 +19,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.misc.IOUtils;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -28,7 +27,7 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class StatoilCrawler implements Crawler {
+public class StatoilCrawler {
     private static final Logger logger = LoggerFactory.getLogger(StatoilCrawler.class);
     private static final String authCookieName = ".ASPXAUTH";
     private String username;
@@ -45,28 +44,13 @@ public class StatoilCrawler implements Crawler {
         builder = new RequestBuilder();
     }
 
-    //TODO proceed with report download
-    @Override
-    public List<Refueling> getRefuelings(final DateTime from, final DateTime to) throws Exception {
-        BasicCookieStore cookieStore = proceedWithReport();
-        final CloseableHttpClient httpClient = buildClient(cookieStore);
-        proceedToReportPage(httpClient, from, to);
-        return null;
-    }
-
-    @Override
-    public boolean checkConnection() throws Exception {
-        BasicCookieStore cookieStore = proceedWithReport();
-        return hasAuthCookie(cookieStore.getCookies());
-    }
-
-    private BasicCookieStore proceedWithReport() throws Exception {
+    public BasicCookieStore authenticate() throws Exception {
         BasicCookieStore cookieStore = new BasicCookieStore();
         Document loginPage;
         // init cookies
         try (CloseableHttpClient httpClient = buildClient(cookieStore)) {
             loginPage = parseLoginPage(httpClient);
-            authenticate(cookieStore, loginPage, httpClient);
+            auth(cookieStore, loginPage, httpClient);
             return cookieStore;
         }
     }
@@ -83,9 +67,9 @@ public class StatoilCrawler implements Crawler {
         return loginPage;
     }
 
-    private void authenticate(final BasicCookieStore cookieStore,
-                              final Document loginPage,
-                              final CloseableHttpClient httpClient) throws IOException {
+    private void auth(final BasicCookieStore cookieStore,
+                      final Document loginPage,
+                      final CloseableHttpClient httpClient) throws IOException {
         HttpPost httpPost = new HttpPost(util.param("loginForm"));
         httpPost.setEntity(new UrlEncodedFormEntity(builder.buildAuthRequest(loginPage, username, password), Consts.UTF_8));
         try (CloseableHttpResponse postResponse = httpClient.execute(httpPost)) {
@@ -95,21 +79,21 @@ public class StatoilCrawler implements Crawler {
         }
     }
 
-    private void proceedToReportPage(final CloseableHttpClient client,
-                                     final DateTime from, final DateTime to) {
+    public String findReport(final CloseableHttpClient client,
+                             final DateTime from, final DateTime to) {
         Document reportsDocument;
         try {
             reportsDocument = getReportsPage(client);
-            downloadReport(client, from, to, reportsDocument);
+            return downloadReport(client, from, to, reportsDocument);
         } catch (IOException e) {
             logger.error("Could not proceed to reports page:", e);
             throw new RuntimeException();
         }
     }
 
-    private void downloadReport(final CloseableHttpClient client,
-                                final DateTime from, final DateTime to,
-                                final Document reportsDocument) throws IOException {
+    private String downloadReport(final CloseableHttpClient client,
+                                  final DateTime from, final DateTime to,
+                                  final Document reportsDocument) throws IOException {
         HttpPost httpPost = new HttpPost(util.param("reportPage"));
         httpPost.setEntity(new UrlEncodedFormEntity(builder.buildDownloadRequest(reportsDocument, from, to), Consts.UTF_8));
         try (CloseableHttpResponse postResponse = client.execute(httpPost)) {
@@ -117,8 +101,14 @@ public class StatoilCrawler implements Crawler {
             logger.debug("Resp after post to reports page: {} ", postResponse.getStatusLine());
             logger.debug("Content type of response: {} ", reportsResp.getContentType());
             InputStream in = reportsResp.getContent();
-            new FileOutputStream("test1.csv").write(IOUtils.readFully(in, -1, false));
-            EntityUtils.consumeQuietly(reportsResp);
+            new FileOutputStream("statoil.csv").write(IOUtils.toByteArray(in));
+            return StringUtils.EMPTY;
+        }
+    }
+
+    private String readContent(final HttpEntity entity) throws IOException {
+        try (InputStream in = entity.getContent()) {
+            return IOUtils.toString(in);
         }
     }
 
@@ -147,7 +137,7 @@ public class StatoilCrawler implements Crawler {
         return !resp.isEmpty();
     }
 
-    private CloseableHttpClient buildClient(final BasicCookieStore cookieStore) {
+    public CloseableHttpClient buildClient(final BasicCookieStore cookieStore) {
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         httpClientBuilder.setDefaultCookieStore(cookieStore);
         httpClientBuilder.setRedirectStrategy(new LaxRedirectStrategy());

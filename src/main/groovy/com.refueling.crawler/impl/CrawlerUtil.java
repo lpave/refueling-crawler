@@ -15,11 +15,11 @@ import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class CrawlerUtil {
+class CrawlerUtil {
     private static final Logger logger = LoggerFactory.getLogger(CrawlerUtil.class);
     private Map<String, Object> config;
 
-    public CrawlerUtil() {
+    CrawlerUtil() {
         config = initConfig();
         checkNotNull(config, "Config initialization failed");
     }
@@ -28,7 +28,7 @@ public class CrawlerUtil {
         ObjectMapper mapper = new ObjectMapper();
         try (InputStream in = Thread.currentThread()
                 .getContextClassLoader()
-                .getResourceAsStream("com/refueling/crawler/impl/config.json")) {
+                .getResourceAsStream("com.refueling.crawler/impl/config.json")) {
             if (in != null) {
                 return mapper.readValue(in, Map.class);
             }
