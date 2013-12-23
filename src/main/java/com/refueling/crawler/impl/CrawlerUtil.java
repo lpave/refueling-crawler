@@ -13,24 +13,28 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 public class CrawlerUtil {
     private static final Logger logger = LoggerFactory.getLogger(CrawlerUtil.class);
     private Map<String, Object> config;
 
     public CrawlerUtil() {
-        init();
+        config = initConfig();
+        checkNotNull(config, "Config initialization failed");
     }
 
-    private void init() {
+    private Map<String, Object> initConfig() {
         ObjectMapper mapper = new ObjectMapper();
-        try {
-            InputStream in = Thread.currentThread()
-                    .getContextClassLoader()
-                    .getResourceAsStream("com/refueling/crawler/impl/config.json");
-            config = mapper.readValue(in, Map.class);
+        try (InputStream in = Thread.currentThread()
+                .getContextClassLoader()
+                .getResourceAsStream("com/refueling/crawler/impl/config.json")) {
+            if (in != null) {
+                return mapper.readValue(in, Map.class);
+            }
+            return null;
         } catch (IOException e) {
-            logger.error("Json configuration initialization failed:", e);
-            throw new RuntimeException();
+            throw new RuntimeException("failed to load essential configuration");
         }
     }
 
