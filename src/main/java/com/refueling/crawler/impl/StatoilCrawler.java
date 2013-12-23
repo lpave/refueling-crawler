@@ -38,6 +38,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class StatoilCrawler implements Crawler {
     private static final Logger logger = LoggerFactory.getLogger(StatoilCrawler.class);
     private static final String datePattern = "dd.MM.yyyy";
+    private static final String authCookieName = ".ASPXAUTH";
+    private static final Integer zeroValue = 0;
+    private static final Integer negativeValue = -1;
     private String username;
     private String password;
     private Map<String, Object> config;
@@ -82,10 +85,9 @@ public class StatoilCrawler implements Crawler {
     private BasicCookieStore authenticate() throws Exception {
         BasicCookieStore cookieStore = new BasicCookieStore();
         Document loginPage = null;
-        final CloseableHttpClient httpClient = buildClient(cookieStore);
         // init cookies
         HttpGet httpGet = new HttpGet(param("mainPage"));
-        try {
+        try (CloseableHttpClient httpClient = buildClient(cookieStore)) {
             try (CloseableHttpResponse getResponse = httpClient.execute(httpGet)) {
                 HttpEntity entity = getResponse.getEntity();
                 loginPage = Jsoup.parse(read(entity));
@@ -101,8 +103,6 @@ public class StatoilCrawler implements Crawler {
                 EntityUtils.consumeQuietly(postEntity);
             }
             return cookieStore;
-        } finally {
-            httpClient.close();
         }
     }
 
@@ -142,7 +142,7 @@ public class StatoilCrawler implements Crawler {
         Predicate<Cookie> filter = new Predicate<Cookie>() {
             @Override
             public boolean apply(Cookie input) {
-                return ".ASPXAUTH".equals(input.getName());
+                return authCookieName.equals(input.getName());
             }
         };
         List<Cookie> resp = FluentIterable.from(cookies).filter(filter).toList();
@@ -172,39 +172,43 @@ public class StatoilCrawler implements Crawler {
     }
 
     private void addHiddenFields(Document document, List<NameValuePair> values, boolean skipValidation) {
-        values.add(new BasicNameValuePair("__ASYNCPOST", "true")); // check whether it is important  ?
-        if (!skipValidation) values.add(nameValuePair(document, "__EVENTTARGET"));
-        values.add(nameValuePair(document, "__EVENTARGUMENT"));
-        values.add(nameValuePair(document, "__LASTFOCUS"));
-        if (!skipValidation) values.add(nameValuePair(document, "__EVENTVALIDATION"));
-        values.add(nameValuePair(document, "__VIEWSTATE"));
-        values.add(nameValuePair(document, "ctl00_ScriptManagerWebfuelSite_HiddenField"));
-        values.add(nameValuePair(document, "ctl00_ScriptManagerWebfuelSite"));
+        values.add(new BasicNameValuePair(param("asyncPost"), "true")); // check whether it is important  ?
+        if (!skipValidation) values.add(nameValuePair(document, param("eventTarget")));
+        values.add(nameValuePair(document, param("eventArg")));
+        values.add(nameValuePair(document, param("focus")));
+        if (!skipValidation) values.add(nameValuePair(document, param("validation")));
+        values.add(nameValuePair(document, param("view")));
+        values.add(nameValuePair(document, param("hiddenField")));
+        values.add(nameValuePair(document, param("scriptManager")));
     }
 
     private void addPasswordFields(List<NameValuePair> values) {
-        values.add(new BasicNameValuePair("ctl00$InputNewPassword1", ""));
-        values.add(new BasicNameValuePair("ctl00$InputNewPassword2", ""));
-        values.add(new BasicNameValuePair("ctl00$InputPasswordOld", ""));
+        values.add(emptyValue(param("inputPassword1")));
+        values.add(emptyValue(param("inputPassword2")));
+        values.add(emptyValue(param("inputPasswordOld")));
+    }
+
+    private BasicNameValuePair emptyValue(final String name) {
+        return new BasicNameValuePair(name, "");
     }
 
     private List<NameValuePair> buildDownloadRequest(final Document document, final DateTime from, final DateTime to) {
         List<NameValuePair> values = Lists.newArrayList();
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$TextBoxViewReportsFrom", from.toString(datePattern)));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$TextBoxViewReportsTo", to.toString(datePattern)));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsReport", param("reportType")));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsAccount", param("accountType")));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$ReportFormat", "RadioButtonCSV"));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$ButtonHandleReportsDownloadReport", "Download+report"));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsAccount", "0"));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsCountry", "0"));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsFuelings", "0"));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsInvoice", "0"));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$DropDownListHandleReportsProduct", "0"));
-        values.add(buildPair("__EVENTTARGET", "ctl00$ContentPlaceHolderContent$DropDownListHandleReportsAccount"));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$HidExport", "-1"));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$HidExportParent", "-1"));
-        values.add(buildPair("ctl00$ContentPlaceHolderContent$HidExportType", "-1"));
+        values.add(buildPair(param("fromDate"), from.toString(datePattern)));
+        values.add(buildPair(param("toDate"), to.toString(datePattern)));
+        values.add(buildPair(param("reportsField"), param("reportType")));
+        values.add(buildPair(param("accountFields"), param("accountType")));
+        values.add(buildPair(param("reportTypeFields"), param("radioButton")));
+        values.add(buildPair(param("downloadReport"), param("downloadButtonName")));
+        values.add(buildPair(param("reportsAccount"), zeroValue.toString()));
+        values.add(buildPair(param("reportsCountry"), zeroValue.toString()));
+        values.add(buildPair(param("reportsFuelings"), zeroValue.toString()));
+        values.add(buildPair(param("reportsInvoice"), zeroValue.toString()));
+        values.add(buildPair(param("reportsProduct"), zeroValue.toString()));
+        values.add(buildPair(param("eventTarget"), param("downloadEventTarget")));
+        values.add(buildPair(param("hidExport"), negativeValue.toString()));
+        values.add(buildPair(param("hidParent"), negativeValue.toString()));
+        values.add(buildPair(param("hidType"), negativeValue.toString()));
         addHiddenFields(document, values, true);
         addPasswordFields(values);
         return values;
