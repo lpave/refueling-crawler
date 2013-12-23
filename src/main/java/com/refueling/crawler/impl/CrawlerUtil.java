@@ -1,7 +1,10 @@
 package com.refueling.crawler.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
+import org.apache.http.HttpEntity;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.util.EntityUtils;
 import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +44,10 @@ public class CrawlerUtil {
 
     public static String value(final Document document, final String id) {
         return document.getElementById(id).val();
+    }
+
+    public static String read(HttpEntity reportsResp) throws IOException {
+        return EntityUtils.toString(reportsResp, Charsets.UTF_8);
     }
 
     public String param(final String key) {

@@ -9,6 +9,6 @@ public class Runner {
         Crawler crawler = new StatoilCrawler(System.getProperty("statoilUser"), System.getProperty("statoilPass"));
         boolean checked = crawler.checkConnection();
         System.out.println("Checked  = " + checked);
-        crawler.getRefuelings(DateTime.now().minusDays(14), DateTime.now());
+        crawler.getRefuelings(DateTime.now().minusDays(60), DateTime.now());
     }
 }

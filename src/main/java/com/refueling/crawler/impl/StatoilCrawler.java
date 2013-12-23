@@ -1,6 +1,5 @@
 package com.refueling.crawler.impl;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.refueling.crawler.Crawler;
@@ -46,77 +45,95 @@ public class StatoilCrawler implements Crawler {
         builder = new RequestBuilder();
     }
 
-
     //TODO proceed with report download
     @Override
     public List<Refueling> getRefuelings(final DateTime from, final DateTime to) throws Exception {
-        BasicCookieStore cookieStore = authenticate();
+        BasicCookieStore cookieStore = proceedWithReport();
         final CloseableHttpClient httpClient = buildClient(cookieStore);
-        shiftToReportsPage(httpClient, from, to);
+        proceedToReportPage(httpClient, from, to);
         return null;
     }
 
     @Override
     public boolean checkConnection() throws Exception {
-        BasicCookieStore cookieStore = authenticate();
+        BasicCookieStore cookieStore = proceedWithReport();
         return hasAuthCookie(cookieStore.getCookies());
     }
 
-    // TODO minimize
-    private BasicCookieStore authenticate() throws Exception {
+    private BasicCookieStore proceedWithReport() throws Exception {
         BasicCookieStore cookieStore = new BasicCookieStore();
-        Document loginPage = null;
+        Document loginPage;
         // init cookies
-        HttpGet httpGet = new HttpGet(util.param("mainPage"));
         try (CloseableHttpClient httpClient = buildClient(cookieStore)) {
-            try (CloseableHttpResponse getResponse = httpClient.execute(httpGet)) {
-                HttpEntity entity = getResponse.getEntity();
-                loginPage = Jsoup.parse(read(entity));
-                logger.debug("getResponse status: {}", getResponse.getStatusLine());
-                EntityUtils.consumeQuietly(entity);
-            }
-            // auth
-            HttpPost httpPost = new HttpPost(util.param("loginForm"));
-            httpPost.setEntity(new UrlEncodedFormEntity(builder.buildAuthRequest(loginPage, username, password), Consts.UTF_8));
-            try (CloseableHttpResponse postResponse = httpClient.execute(httpPost)) {
-                HttpEntity postEntity = postResponse.getEntity();
-                logger.debug("postResponse status: {} and cookies : {} ", postResponse.getStatusLine(), cookieStore.getCookies());
-                EntityUtils.consumeQuietly(postEntity);
-            }
+            loginPage = parseLoginPage(httpClient);
+            authenticate(cookieStore, loginPage, httpClient);
             return cookieStore;
         }
     }
 
-    private void shiftToReportsPage(final CloseableHttpClient client, final DateTime from, final DateTime to) {
-        Document reportsDocument = null;
-        HttpGet httpGet = new HttpGet(util.param("reportPage"));
+    private Document parseLoginPage(final CloseableHttpClient httpClient) throws IOException {
+        HttpGet httpGet = new HttpGet(util.param("mainPage"));
+        Document loginPage;
+        try (CloseableHttpResponse getResponse = httpClient.execute(httpGet)) {
+            HttpEntity entity = getResponse.getEntity();
+            loginPage = Jsoup.parse(CrawlerUtil.read(entity));
+            logger.debug("getResponse status: {}", getResponse.getStatusLine());
+            EntityUtils.consumeQuietly(entity);
+        }
+        return loginPage;
+    }
+
+    private void authenticate(final BasicCookieStore cookieStore,
+                              final Document loginPage,
+                              final CloseableHttpClient httpClient) throws IOException {
+        HttpPost httpPost = new HttpPost(util.param("loginForm"));
+        httpPost.setEntity(new UrlEncodedFormEntity(builder.buildAuthRequest(loginPage, username, password), Consts.UTF_8));
+        try (CloseableHttpResponse postResponse = httpClient.execute(httpPost)) {
+            HttpEntity postEntity = postResponse.getEntity();
+            logger.debug("postResponse status: {} and cookies : {} ", postResponse.getStatusLine(), cookieStore.getCookies());
+            EntityUtils.consumeQuietly(postEntity);
+        }
+    }
+
+    private void proceedToReportPage(final CloseableHttpClient client,
+                                     final DateTime from, final DateTime to) {
+        Document reportsDocument;
         try {
-            try (CloseableHttpResponse getResponse = client.execute(httpGet)) {
-                HttpEntity resp = getResponse.getEntity();
-                logger.debug("Resp from reports page: {}", getResponse.getStatusLine());
-                reportsDocument = Jsoup.parse(read(resp));
-                Element downloadReport = reportsDocument.getElementById("ctl00_ContentPlaceHolderContent_ButtonHandleReportsDownloadReport");
-                logger.debug("DownloadReport element {} ", downloadReport); // means we have reached download button
-                EntityUtils.consumeQuietly(resp);
-            }
-            HttpPost httpPost = new HttpPost(util.param("reportPage"));
-            httpPost.setEntity(new UrlEncodedFormEntity(builder.buildDownloadRequest(reportsDocument, from, to), Consts.UTF_8));
-            try (CloseableHttpResponse postResponse = client.execute(httpPost)) {
-                HttpEntity reportsResp = postResponse.getEntity();
-                logger.debug("Resp after post to reports page: {} ", postResponse.getStatusLine());
-                logger.debug("Content type of response: {} ", reportsResp.getContentType());
-                InputStream in = reportsResp.getContent();
-                new FileOutputStream("test1.csv").write(IOUtils.readFully(in, -1, false));
-                EntityUtils.consumeQuietly(reportsResp);
-            }
+            reportsDocument = getReportsPage(client);
+            downloadReport(client, from, to, reportsDocument);
         } catch (IOException e) {
             logger.error("Could not proceed to reports page:", e);
             throw new RuntimeException();
         }
     }
 
-    private String read(HttpEntity reportsResp) throws IOException {
-        return EntityUtils.toString(reportsResp, Charsets.UTF_8);
+    private void downloadReport(final CloseableHttpClient client,
+                                final DateTime from, final DateTime to,
+                                final Document reportsDocument) throws IOException {
+        HttpPost httpPost = new HttpPost(util.param("reportPage"));
+        httpPost.setEntity(new UrlEncodedFormEntity(builder.buildDownloadRequest(reportsDocument, from, to), Consts.UTF_8));
+        try (CloseableHttpResponse postResponse = client.execute(httpPost)) {
+            HttpEntity reportsResp = postResponse.getEntity();
+            logger.debug("Resp after post to reports page: {} ", postResponse.getStatusLine());
+            logger.debug("Content type of response: {} ", reportsResp.getContentType());
+            InputStream in = reportsResp.getContent();
+            new FileOutputStream("test1.csv").write(IOUtils.readFully(in, -1, false));
+            EntityUtils.consumeQuietly(reportsResp);
+        }
+    }
+
+    private Document getReportsPage(CloseableHttpClient client) throws IOException {
+        Document reportsDocument;
+        HttpGet httpGet = new HttpGet(util.param("reportPage"));
+        try (CloseableHttpResponse getResponse = client.execute(httpGet)) {
+            HttpEntity resp = getResponse.getEntity();
+            logger.debug("Resp from reports page: {}", getResponse.getStatusLine());
+            reportsDocument = Jsoup.parse(CrawlerUtil.read(resp));
+            Element downloadReport = reportsDocument.getElementById("ctl00_ContentPlaceHolderContent_ButtonHandleReportsDownloadReport");
+            logger.debug("DownloadReport element {} ", downloadReport); // means we have reached download button
+            EntityUtils.consumeQuietly(resp);
+        }
+        return reportsDocument;
     }
 
     private boolean hasAuthCookie(final List<Cookie> cookies) {
