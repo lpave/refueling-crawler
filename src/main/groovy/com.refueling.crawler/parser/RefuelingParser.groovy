@@ -15,7 +15,7 @@ class RefuelingParser {
     }
 
     List<Refueling> getStatoilRefuelings() {
-        def parsedCsvIterator = getParsedCsv()
+        def parsedCsvIterator = buildCsvIterator()
         List<Refueling> refuelings = Lists.newArrayList();
         parsedCsvIterator.each {
             refuelings.add(
@@ -28,7 +28,7 @@ class RefuelingParser {
     }
 
     //TODO refactor me, we need access header fields but those contain unnecessary whitespaces
-    private Iterator getParsedCsv() {
+    private Iterator buildCsvIterator() {
         String[] lines = content.split('\n')
         String headerLine = StringUtils.deleteWhitespace(lines.head())
         StringBuilder sb = new StringBuilder(headerLine)
