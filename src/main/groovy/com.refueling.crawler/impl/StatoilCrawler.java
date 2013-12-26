@@ -3,7 +3,6 @@ package com.refueling.crawler.impl;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.refueling.crawler.parser.CsvConverter;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Consts;
 import org.apache.http.HttpEntity;
@@ -107,12 +106,6 @@ public class StatoilCrawler {
             }
             EntityUtils.consumeQuietly(resp);
             return csvContent;
-        }
-    }
-
-    private String readContent(final HttpEntity entity) throws IOException {
-        try (InputStream in = entity.getContent()) {
-            return IOUtils.toString(in);
         }
     }
 
