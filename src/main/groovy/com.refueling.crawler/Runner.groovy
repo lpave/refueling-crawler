@@ -10,7 +10,7 @@ class Runner {
         CrawlerService crawler = new CrawlerServiceImpl(System.getProperty("statoilUser"), System.getProperty("statoilPass"))
         def checked = crawler.checkConnection()
         println 'Checked  = ' + checked
-        List<Refueling> refuelings = crawler.getRefuelings(DateTime.now().minusDays(14), DateTime.now())
+        List<Refueling> refuelings = crawler.getRefuelings(DateTime.now().minusDays(50), DateTime.now())
         refuelings.each {
             println it
         }

@@ -1,6 +1,6 @@
 package com.refueling.crawler.parser
 
-import com.google.common.collect.Lists
+import com.beust.jcommander.internal.Lists
 import com.refueling.crawler.dto.Refueling
 import com.xlson.groovycsv.CsvParser
 import org.apache.commons.lang3.StringUtils
@@ -8,27 +8,35 @@ import org.joda.time.format.DateTimeFormat
 import org.joda.time.format.DateTimeFormatter
 
 class RefuelingParser {
+    final String content
 
-    static List<Refueling> getStatoilRefuelings(final String csvContent) {
-        List<Refueling> refuelings = Lists.newArrayList()
-        def it = parseCsv(csvContent)
-        it.each {
-            refuelings.add(new Refueling(accountNr: it.Account, cardNr: it.Card, cardOwner: it.CardText,
-                    refuelingDate: formatter().parseDateTime(it.Date), stationName: it.Location, product: it.Product,
-                    numberOfLitres: parsePrice(it.Volume), pricePerLitre: parsePrice(it.PumppriceinCurrency),
-                    discount: it.Discount))
+    RefuelingParser(final String content) {
+        this.content = content
+    }
+
+    List<Refueling> getStatoilRefuelings() {
+        def parsedCsvIterator = getParsedCsv()
+        List<Refueling> refuelings = Lists.newArrayList();
+        parsedCsvIterator.each {
+            refuelings.add(
+                    new Refueling(accountNr: it.Account, cardNr: it.Card, cardOwner: it.CardText,
+                            refuelingDate: formatter().parseDateTime(it.Date), stationName: it.Location,
+                            product: it.Product, numberOfLitres: parsePrice(it.Volume),
+                            pricePerLitre: parsePrice(it.PumppriceinCurrency), discount: it.Discount))
         }
         refuelings
     }
 
-    static Iterator parseCsv(final String content) {
+    //TODO refactor me, we need access header fields but those contain unnecessary whitespaces
+    private Iterator getParsedCsv() {
         String[] lines = content.split('\n')
         String headerLine = StringUtils.deleteWhitespace(lines.head())
         StringBuilder sb = new StringBuilder(headerLine)
-        for (i in 1..lines.size()-1) {
+        for (i in 1..lines.size() - 1) {
             sb.append('\n' + lines[i])
         }
-        new CsvParser().parse(sb.toString(), separator: ';')
+        def parsedCsv = new CsvParser().parse(sb.toString(), separator: ';')
+        parsedCsv
     }
 
     private float parsePrice(final String price) {

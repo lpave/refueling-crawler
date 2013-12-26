@@ -19,7 +19,7 @@ class CrawlerServiceImpl implements CrawlerService {
         BasicCookieStore cookieStore = crawler.authenticate()
         final CloseableHttpClient httpClient = crawler.buildClient(cookieStore)
         String csvContent = crawler.findReport(httpClient, from, to)
-        RefuelingParser.getStatoilRefuelings(csvContent)
+        new RefuelingParser(csvContent).getStatoilRefuelings()
     }
 
     @Override

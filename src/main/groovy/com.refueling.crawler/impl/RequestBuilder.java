@@ -71,7 +71,7 @@ public class RequestBuilder {
         values.add(CrawlerUtil.buildPair(util.param("reportsFuelings"), zeroValue.toString()));
         values.add(CrawlerUtil.buildPair(util.param("reportsInvoice"), zeroValue.toString()));
         values.add(CrawlerUtil.buildPair(util.param("reportsProduct"), zeroValue.toString()));
-        values.add(CrawlerUtil.buildPair(util.param("eventTarget"), util.param("downloadEventTarget")));
+        values.add(CrawlerUtil.buildPair(util.param("eventTarget"), ""));
         values.add(CrawlerUtil.buildPair(util.param("hidExport"), negativeValue.toString()));
         values.add(CrawlerUtil.buildPair(util.param("hidParent"), negativeValue.toString()));
         values.add(CrawlerUtil.buildPair(util.param("hidType"), negativeValue.toString()));

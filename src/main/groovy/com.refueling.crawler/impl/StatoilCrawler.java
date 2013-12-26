@@ -2,6 +2,7 @@ package com.refueling.crawler.impl;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.refueling.crawler.parser.CsvConverter;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Consts;
@@ -20,7 +21,6 @@ import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -94,15 +94,19 @@ public class StatoilCrawler {
     private String downloadReport(final CloseableHttpClient client,
                                   final DateTime from, final DateTime to,
                                   final Document reportsDocument) throws IOException {
+        String csvContent = StringUtils.EMPTY;
         HttpPost httpPost = new HttpPost(util.param("reportPage"));
         httpPost.setEntity(new UrlEncodedFormEntity(builder.buildDownloadRequest(reportsDocument, from, to), Consts.UTF_8));
         try (CloseableHttpResponse postResponse = client.execute(httpPost)) {
-            HttpEntity reportsResp = postResponse.getEntity();
+            HttpEntity resp = postResponse.getEntity();
             logger.debug("Resp after post to reports page: {} ", postResponse.getStatusLine());
-            logger.debug("Content type of response: {} ", reportsResp.getContentType());
-            InputStream in = reportsResp.getContent();
-            new FileOutputStream("statoil.csv").write(IOUtils.toByteArray(in));
-            return StringUtils.EMPTY;
+            InputStream in = resp.getContent();
+            if (in != null) {
+                csvContent = new CsvConverter().convertToCsv(in);
+                in.close();
+            }
+            EntityUtils.consumeQuietly(resp);
+            return csvContent;
         }
     }
 
