@@ -1,20 +1,11 @@
-package com.refueling.crawler.parser;
+package com.refueling.crawler.parser
 
-import com.refueling.crawler.dto.Refueling;
-import org.junit.Before;
-import org.junit.Test;
+import com.refueling.crawler.dto.Refueling
+import org.hamcrest.Matchers
+import org.junit.Assert
+import org.junit.Test
 
-import java.util.List;
-
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-
-public class RefuelingParserTest {
-
-    @Before
-    public void setUp() throws Exception {
-
-    }
+class RefuelingParserTest {
 
     @Test
     public void testThatRefuelingsParsed() {
@@ -28,8 +19,8 @@ public class RefuelingParserTest {
         RefuelingParser parser = new RefuelingParser(csv);
         List<Refueling> refuelings = parser.getStatoilRefuelings();
         Refueling parsedRefueling = refuelings.get(0);
-        assertThat(parsedRefueling.getCardOwner(), equalTo("Chuck Norris"));
-        assertThat(parsedRefueling.getAccountNr(), equalTo("12345"));
-        assertThat(parsedRefueling.getStationName(), equalTo("Statoil"));
+        Assert.assertThat(parsedRefueling.cardOwner, Matchers.equalTo("Chuck Norris"));
+        Assert.assertThat(parsedRefueling.accountNr, Matchers.equalTo("12345"));
+        Assert.assertThat(parsedRefueling.stationName, Matchers.equalTo("Statoil"));
     }
 }

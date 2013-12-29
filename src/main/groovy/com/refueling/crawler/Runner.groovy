@@ -1,6 +1,7 @@
 package com.refueling.crawler
 
 import com.refueling.crawler.dto.Refueling
+import CrawlerServiceImpl
 import com.refueling.crawler.impl.CrawlerServiceImpl
 import org.joda.time.DateTime
 

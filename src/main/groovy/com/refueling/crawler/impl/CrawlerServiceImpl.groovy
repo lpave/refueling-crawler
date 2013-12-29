@@ -1,5 +1,8 @@
 package com.refueling.crawler.impl
 
+import CrawlerService
+import Refueling
+import RefuelingParser
 import com.refueling.crawler.CrawlerService
 import com.refueling.crawler.dto.Refueling
 import com.refueling.crawler.parser.RefuelingParser

@@ -1,6 +1,6 @@
 package com.refueling.crawler.parser
 
-import com.beust.jcommander.internal.Lists
+import com.google.common.collect.Lists
 import com.refueling.crawler.dto.Refueling
 import com.xlson.groovycsv.CsvParser
 import org.apache.commons.lang3.StringUtils

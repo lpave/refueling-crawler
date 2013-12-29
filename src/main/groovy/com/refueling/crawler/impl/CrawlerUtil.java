@@ -32,7 +32,7 @@ class CrawlerUtil {
         ObjectMapper mapper = new ObjectMapper();
         try (InputStream in = Thread.currentThread()
                 .getContextClassLoader()
-                .getResourceAsStream("com.refueling.crawler/impl/config.json")) {
+                .getResourceAsStream("com/refueling/crawler/impl/config.json")) {
             if (in != null) {
                 return mapper.readValue(in, Map.class);
             }
