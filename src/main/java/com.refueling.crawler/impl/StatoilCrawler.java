@@ -11,7 +11,8 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.cookie.Cookie;
-import org.apache.http.impl.client.*;
+import org.apache.http.impl.client.BasicCookieStore;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 import org.joda.time.DateTime;
 import org.jsoup.Jsoup;
@@ -26,21 +27,17 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class StatoilCrawler {
+public class StatoilCrawler extends Crawler {
     private static final Logger logger = LoggerFactory.getLogger(StatoilCrawler.class);
     private static final String authCookieName = ".ASPXAUTH";
-    private String username;
-    private String password;
-    private CrawlerUtil util;
-    private RequestBuilder builder;
-
+    private final String username;
+    private final String password;
     public StatoilCrawler(final String username, final String password) {
+        super();
         checkNotNull(username, "Should be initialized");
         checkNotNull(password, "Should be initialized");
         this.username = username;
         this.password = password;
-        util = new CrawlerUtil();
-        builder = new RequestBuilder();
     }
 
     public BasicCookieStore authenticate() throws Exception {
@@ -134,12 +131,5 @@ public class StatoilCrawler {
         return !resp.isEmpty();
     }
 
-    public CloseableHttpClient buildClient(final BasicCookieStore cookieStore) {
-        HttpClientBuilder httpClientBuilder = HttpClients.custom();
-        httpClientBuilder.setDefaultCookieStore(cookieStore);
-        httpClientBuilder.setRedirectStrategy(new LaxRedirectStrategy());
-        httpClientBuilder.setUserAgent(util.param("userAgent"));
-        return httpClientBuilder.build();
-    }
 
 }

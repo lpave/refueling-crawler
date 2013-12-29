@@ -28,6 +28,8 @@ dependencies {
     // TODO there is a chance to get csv from statoil directly, need to find proper post params
     compile 'org.apache.poi:poi:3.10-beta2'
     compile 'org.apache.poi:poi-ooxml:3.10-beta2'
+    compile 'org.apache.commons:commons-io:1.3.2'
+
 
     testCompile 'junit:junit:4.11'
     testCompile 'org.mockito:mockito-all:1.9.5'

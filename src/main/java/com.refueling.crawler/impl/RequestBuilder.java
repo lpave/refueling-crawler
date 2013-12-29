@@ -1,11 +1,13 @@
 package com.refueling.crawler.impl;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 import org.joda.time.DateTime;
 import org.jsoup.nodes.Document;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class RequestBuilder {
@@ -30,6 +32,16 @@ public class RequestBuilder {
             addHiddenFields(document, values, false);
         }
         addPasswordFields(values);
+        return values;
+    }
+
+    public List<NameValuePair> buildNesteAuthRequest(final String username, final String password) {
+        List<NameValuePair> values = Lists.newArrayList();
+        String joinedUsername = Joiner.on("@").join(Arrays.asList(username, username));
+        values.add(new BasicNameValuePair("username", joinedUsername));
+        values.add(new BasicNameValuePair("username2", username));
+        values.add(new BasicNameValuePair("password", password));
+        values.add(new BasicNameValuePair("customerid2", username));
         return values;
     }
 

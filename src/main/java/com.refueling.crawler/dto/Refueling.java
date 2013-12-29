@@ -62,8 +62,30 @@ public class Refueling {
         this.accountNr = accountNr;
     }
 
+    public String getCardNr() {
+        return cardNr;
+    }
+
+    public String getCardOwner() {
+        return cardOwner;
+    }
+
+    public String getProduct() {
+        return product;
+    }
+
     @Override
     public String toString() {
-        return getAccountNr() + ", " + getRefuelingDate() + ", " + getStationName() + ", " + getNumberOfLitres();
+        return "Refueling{" +
+                "accountNr='" + accountNr + '\'' +
+                ", cardNr='" + cardNr + '\'' +
+                ", cardOwner='" + cardOwner + '\'' +
+                ", refuelingDate=" + refuelingDate +
+                ", stationName='" + stationName + '\'' +
+                ", product='" + product + '\'' +
+                ", numberOfLitres=" + numberOfLitres +
+                ", pricePerLitre=" + pricePerLitre +
+                ", discount='" + discount + '\'' +
+                '}';
     }
 }

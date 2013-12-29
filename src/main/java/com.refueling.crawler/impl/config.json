@@ -35,5 +35,8 @@
     "downloadEventTarget": "ctl00$ContentPlaceHolderContent$DropDownListHandleReportsAccount",
     "hidExport": "ctl00$ContentPlaceHolderContent$HidExport",
     "hidParent": "ctl00$ContentPlaceHolderContent$HidExportParent",
-    "hidType": "ctl00$ContentPlaceHolderContent$HidExportType"
+    "hidType": "ctl00$ContentPlaceHolderContent$HidExportType",
+    "nesteMainPage": "https://extranet.nesteoil.com/",
+    "nesteAuthPage": "https://wam.nesteoil.com"
+
 }

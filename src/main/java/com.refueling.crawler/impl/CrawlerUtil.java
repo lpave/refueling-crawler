@@ -2,7 +2,10 @@ package com.refueling.crawler.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
+import org.apache.http.Consts;
 import org.apache.http.HttpEntity;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.jsoup.nodes.Document;
@@ -11,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -56,5 +60,9 @@ class CrawlerUtil {
 
     public String param(final String key) {
         return (String) config.get(key);
+    }
+
+    public static UrlEncodedFormEntity buildEncodedEntity(final List<NameValuePair> values) {
+        return new UrlEncodedFormEntity(values, Consts.UTF_8);
     }
 }
