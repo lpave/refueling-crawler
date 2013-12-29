@@ -1,12 +1,10 @@
 package com.refueling.crawler.impl
-
 import com.refueling.crawler.CrawlerService
 import com.refueling.crawler.dto.Refueling
 import org.hamcrest.Matchers
 import org.joda.time.DateTime
 import org.junit.Assert
 import org.junit.Before
-import org.junit.Test
 
 import static org.hamcrest.Matchers.everyItem
 
@@ -32,9 +30,9 @@ class CrawlerServiceImplTest {
         Assert.assertThat(refuelings, everyItem(Matchers.<Refueling> hasProperty("numberOfLitres")));
     }
 
-    @Test
-    public void testCheckConenctionWithInvalidCredentials() throws Exception {
-        CrawlerService crawler = new CrawlerServiceImpl("foo", "bar");
+//    @Test
+    public void testCheckConnectionWithInvalidCredentials() throws Exception {
+        CrawlerService crawler = new CrawlerServiceImpl('foo', 'bar');
         Assert.assertThat(crawler.checkConnection(), Matchers.is(false));
     }
 
