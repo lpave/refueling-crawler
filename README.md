@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/plavreshin/refueling-crawler.png?branch=master)](https://travis-ci.org/plavreshin/refueling-crawler)
+
 Add -DstatoilUser= and -DstatoilPass= to your run configuration.
 
 Apache http client debug logging, add this to your run configuration :
