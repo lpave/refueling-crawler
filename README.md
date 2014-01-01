@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/plavreshin/refueling-crawler.png?branch=master)](https://travis-ci.org/plavreshin/refueling-crawler)
 ---------
 
-**Refueling crawler** was crafted to simplify acces to statoilwebfuel.com intranet, where one can download reports and track refuelings. 
+**Refueling crawler** was crafted to simplify access and provide API to statoilwebfuel.com intranet, where one with valid account can download reports and track refuelings. 
 
 It is a proof-of-concept in Groovy/Java, where different open-source libraries are put together to automate query and download steps:
 > - Apache HttpClient for queries 
