@@ -1,7 +1,8 @@
 package com.refueling.crawler.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import org.apache.http.Consts;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
@@ -9,37 +10,15 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.jsoup.nodes.Document;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.List;
-import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+public class CrawlerUtil {
+    private Config config;
 
-class CrawlerUtil {
-    private static final Logger logger = LoggerFactory.getLogger(CrawlerUtil.class);
-    private Map<String, Object> config;
-
-    CrawlerUtil() {
-        config = initConfig();
-        checkNotNull(config, "Config initialization failed");
-    }
-
-    private Map<String, Object> initConfig() {
-        ObjectMapper mapper = new ObjectMapper();
-        try (InputStream in = Thread.currentThread()
-                .getContextClassLoader()
-                .getResourceAsStream("com/refueling/crawler/impl/config.json")) {
-            if (in != null) {
-                return mapper.readValue(in, Map.class);
-            }
-            return null;
-        } catch (IOException e) {
-            throw new RuntimeException("failed to load essential configuration");
-        }
+    public CrawlerUtil() {
+        config = ConfigFactory.load();
     }
 
     public static BasicNameValuePair buildPair(final String name, final String value) {
@@ -59,7 +38,7 @@ class CrawlerUtil {
     }
 
     public String param(final String key) {
-        return (String) config.get(key);
+        return config.getString(key);
     }
 
     public static UrlEncodedFormEntity buildEncodedEntity(final List<NameValuePair> values) {
